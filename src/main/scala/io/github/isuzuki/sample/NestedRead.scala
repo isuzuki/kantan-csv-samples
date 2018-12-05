@@ -9,17 +9,26 @@ import kantan.csv.ops._
 case class Item (
   id: Int,
   name: String,
-  spec1: Item.Spec,
+  specs: Item.Specs
 )
 
 object Item {
   implicit lazy val headerDecoder: HeaderDecoder[Item] = HeaderDecoder.defaultHeaderDecoder[Item]
-  implicit lazy val rowDecoder: RowDecoder[Spec] = RowDecoder.decoder(0, 1)(Spec.apply)
+  implicit lazy val rowDecoder: RowDecoder[Specs] = RowDecoder.ordered { (n1: String, v1: Int, n2: String, v2: Int) =>
+    Specs(Specs.Spec(n1, v1), Specs.Spec(n2, v2))
+  }
 
-  case class Spec (
-    name: String,
-    value: Int
+  case class Specs (
+    spec1: Specs.Spec,
+    spec2: Specs.Spec
   )
+
+  object Specs {
+    case class Spec(
+      name: String,
+      value: Int
+    )
+  }
 }
 
 object NestedRead extends App {
