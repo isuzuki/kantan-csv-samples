@@ -1,0 +1,5 @@
+id,name,category,subcategory,price,start_at
+1,item1,cat1,subcat1,1000,2018/12/01 00:00
+2,item2,cat2,,3000
+,,cat3,,5000
+4,item4,cat4,subcat4,1000,opt
