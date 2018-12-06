@@ -6,45 +6,50 @@ import kantan.csv._
 import kantan.csv.generic._
 import kantan.csv.ops._
 
-case class CsvRecord (
-  item: Item,
-)
-
-object CsvRecord {
-  implicit lazy val headerDecoder: HeaderDecoder[CsvRecord] = HeaderDecoder.defaultHeaderDecoder[CsvRecord]
-}
-
-case class Item (
-  id: Int,
-  name: String,
-  specs: Item.Specs
-)
-
-object Item {
-  implicit lazy val rowDecoder: RowDecoder[Specs] = RowDecoder.from { row =>
-    val (row1, row2) = row.splitAt(2)
-    for {
-      spec1 <- Specs.rowDecoder.decode(row1)
-      spec2 <- Specs.rowDecoder.decode(row2)
-    } yield Specs(spec1, spec2)
-  }
-
-  case class Specs (
-    spec1: Specs.Spec,
-    spec2: Specs.Spec
+object NestedRead {
+  case class CsvRecord (
+    item: Item,
+    spec: Spec,
+    specs: List[Spec]
   )
 
-  object Specs {
-    implicit lazy val rowDecoder: RowDecoder[Spec] = RowDecoder.decoder(0, 1)(Spec.apply)
+  case class Item (
+    id: Int,
+    name: String
+  )
 
-    case class Spec(
-      name: String,
-      value: Int
-    )
+  object Item {
+    implicit lazy val rowDecoder: RowDecoder[Item] = RowDecoder.decoder(0, 1)(Item.apply)
   }
-}
 
-object NestedRead extends App {
-  val file = new File(getClass.getResource("/nested_items.csv").getPath)
-  file.asCsvReader[CsvRecord](rfc.withHeader).foreach(println)
+  case class Spec (
+    name: String,
+    value: Int
+  )
+
+  object Spec {
+    implicit lazy val rowDecoder: RowDecoder[Spec] = RowDecoder.decoder(0, 1)(Spec.apply)
+  }
+
+  def main(args: Array[String]): Unit = {
+    implicit lazy val headerDecoder: HeaderDecoder[CsvRecord] = HeaderDecoder.defaultHeaderDecoder[CsvRecord]
+
+    implicit lazy val lsRowDecoder: RowDecoder[List[Spec]] = RowDecoder.from { row =>
+      for {
+        spec1 <- Spec.rowDecoder.decode(row.slice(0, 2))
+        spec2 <- Spec.rowDecoder.decode(row.slice(2, 4))
+      } yield List(spec1, spec2)
+    }
+
+    implicit lazy val cRowDecoder: RowDecoder[CsvRecord] = RowDecoder.from { row =>
+      for {
+        item <- Item.rowDecoder.decode(row.slice(0, 2))
+        spec <- Spec.rowDecoder.decode(row.slice(2, 4))
+        specs <- lsRowDecoder.decode(row.slice(2, 6))
+      } yield CsvRecord(item, spec, specs)
+    }
+
+    val file = new File(getClass.getResource("/nested_items.csv").getPath)
+    file.asCsvReader[CsvRecord](rfc.withHeader).foreach(println)
+  }
 }
