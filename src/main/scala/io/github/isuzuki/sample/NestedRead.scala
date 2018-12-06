@@ -6,6 +6,14 @@ import kantan.csv._
 import kantan.csv.generic._
 import kantan.csv.ops._
 
+case class CsvRecord (
+  item: Item,
+)
+
+object CsvRecord {
+  implicit lazy val headerDecoder: HeaderDecoder[CsvRecord] = HeaderDecoder.defaultHeaderDecoder[CsvRecord]
+}
+
 case class Item (
   id: Int,
   name: String,
@@ -13,9 +21,12 @@ case class Item (
 )
 
 object Item {
-  implicit lazy val headerDecoder: HeaderDecoder[Item] = HeaderDecoder.defaultHeaderDecoder[Item]
-  implicit lazy val rowDecoder: RowDecoder[Specs] = RowDecoder.ordered { (n1: String, v1: Int, n2: String, v2: Int) =>
-    Specs(Specs.Spec(n1, v1), Specs.Spec(n2, v2))
+  implicit lazy val rowDecoder: RowDecoder[Specs] = RowDecoder.from { row =>
+    val (row1, row2) = row.splitAt(2)
+    for {
+      spec1 <- Specs.rowDecoder.decode(row1)
+      spec2 <- Specs.rowDecoder.decode(row2)
+    } yield Specs(spec1, spec2)
   }
 
   case class Specs (
@@ -24,6 +35,8 @@ object Item {
   )
 
   object Specs {
+    implicit lazy val rowDecoder: RowDecoder[Spec] = RowDecoder.decoder(0, 1)(Spec.apply)
+
     case class Spec(
       name: String,
       value: Int
@@ -33,5 +46,5 @@ object Item {
 
 object NestedRead extends App {
   val file = new File(getClass.getResource("/nested_items.csv").getPath)
-  file.asCsvReader[Item](rfc.withHeader).foreach(println)
+  file.asCsvReader[CsvRecord](rfc.withHeader).foreach(println)
 }
